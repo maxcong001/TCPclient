@@ -52,7 +52,8 @@ void TcpClient::handleEvent(short events)
 		_bev = NULL;
 		return;
 	}
-
+ 
+ 
 	if (events & BEV_EVENT_CONNECTED)
 	{
 		int socketError = EVUTIL_SOCKET_ERROR();
@@ -62,7 +63,6 @@ void TcpClient::handleEvent(short events)
 			_isConnected = true; //.store(true, std::memory_order_release);
 			onConnected(socketError);
 		}
-
 		else
 		{
 			onConnected(socketError);

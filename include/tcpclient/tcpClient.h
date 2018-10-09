@@ -29,7 +29,6 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 
-#include "common/util.hpp"
 namespace tcpclient
 {
 class TcpClient : public TcpSocket
@@ -63,7 +62,6 @@ class TcpClient : public TcpSocket
 	{
 		// note: note no cross check for source IP
 		set_source_addr(get_conn_info().get_source_ip(), fd);
-		// to do: get dscp from configuration
 		this->_bev = bufferevent_socket_new(_loop->ev(), fd,
 											BEV_OPT_CLOSE_ON_FREE | BEV_OPT_THREADSAFE | BEV_OPT_DEFER_CALLBACKS);
 		if (NULL == this->_bev)
@@ -71,7 +69,7 @@ class TcpClient : public TcpSocket
 			__LOG(error, "buffer event new return fail!");
 			return false;
 		}
-		__LOG(debug, "[init] buffer_event is : " << (void *)(this->_bev) << ", this is : " << (void *)this);
+		__LOG(debug, "[_connect] buffer_event is : " << (void *)(this->_bev) << ", this is : " << (void *)this);
 
 		bufferevent_setcb(this->_bev, readCallback, writeCallback, eventCallback, this);
 		if (-1 == bufferevent_enable(this->_bev, EV_READ | EV_WRITE))

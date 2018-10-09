@@ -118,7 +118,6 @@ void TcpSocket::checkClosing()
 {
 	if (_isClosing && (0 == evbuffer_get_length(OUTPUT_BUFFER)))
 	{
-		_isClosing = false;
 		closeImpl();
 	}
 }
