@@ -124,7 +124,7 @@ bool tcpClient::post_connect(CONN_INFO info)
 	TASK_MSG msg;
 	msg.type = TASK_MSG_TYPE::TASK_ADD_CONN;
 	msg.body = std::make_tuple(info, shared_from_this());
-	_loop->post_message(msg);
+	return _loop->post_message(msg);
 }
 bool tcpClient::connect(CONN_INFO _info)
 {

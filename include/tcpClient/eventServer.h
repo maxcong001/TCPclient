@@ -28,7 +28,10 @@
 #include <unistd.h>
 #include <sys/eventfd.h>
 #include <event2/util.h>
+#include <event2/event.h>
 
+#define EVENTFD_EVENT_NEW_ERROR "EVENTFD_EVENT_NEW_ERROR"
+#define EVENTFD_EVENT_ADD_ERROR "EVENTFD_EVENT_ADD_ERROR"
 /**
  * @brief EventFdServer base 
  */

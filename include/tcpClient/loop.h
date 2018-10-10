@@ -42,37 +42,26 @@ class Loop : public std::enable_shared_from_this<Loop>
 public:
 	Loop();
 	virtual ~Loop();
-
 	inline event_base *get_event_base()
 	{
 		__LOG(debug, "[get event_base]: event base is : " << (void *)_base);
 		return _base;
 	}
-
 	inline int status() const
 	{
 		return _status;
 	}
-
 	bool init(bool newThread);
-
 	void stop(bool waiting = true);
-
-	bool post_message();
+	bool post_message(TASK_MSG msg);
 	void process_message(uint64_t one);
-
 protected:
 	virtual bool onBeforeStart();
-
 	virtual void onBeforeLoop();
-
 	virtual void onAfterLoop();
-
 	virtual void onAfterStop();
-
 private:
 	void _run();
-
 private:
 	event_base *_base;
 	std::shared_ptr<std::thread> _thread_sptr;
@@ -80,5 +69,5 @@ private:
 	TASK_QUEUE _task_queue;
 	std::mutex mtx;
 	std::shared_ptr<EventFdServer> _event_server;
-	std::shared_ptr<EVFDClient> _event_client;
+	std::shared_ptr<EventFdClient> _event_client;
 };

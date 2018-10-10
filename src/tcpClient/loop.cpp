@@ -24,7 +24,9 @@
  */
 
 #include "tcpClient/loop.h"
-
+#include "tcpClient/tcpClient.h"
+#include "tcpClient/eventClient.h"
+#include "tcpClient/eventServer.h"
 void evfdCallback(int fd, short event, void *args)
 {
     uint64_t one;
@@ -44,7 +46,7 @@ bool Loop::post_message(TASK_MSG msg)
         std::lock_guard<std::mutex> lck(mtx);
         _task_queue.push(msg);
     }
-    _event_client->send();
+    return _event_client->send();
 }
 void Loop::process_message(uint64_t one)
 {
@@ -62,16 +64,14 @@ void Loop::process_message(uint64_t one)
     while (_tmp_task_queue.size() != 0)
     {
         auto tmp = _tmp_task_queue.front();
-
         switch (tmp.type)
         {
-
         case TASK_MSG_TYPE::TASK_ADD_CONN:
         {
-            std::tuple<conn_info, std::shared_ptr<tcpClient>> msg_body;
+            std::tuple<CONN_INFO, std::shared_ptr<tcpClient>> msg_body;
             try
             {
-                msg_body = TASK_ANY_CAST < std::tuple<conn_info, std::shared_ptr<tcpClient>>(tmp.body);
+                msg_body = TASK_ANY_CAST<std::tuple<CONN_INFO, std::shared_ptr<tcpClient>>>(tmp.body);
             }
             catch (std::exception &e)
             {
@@ -81,7 +81,6 @@ void Loop::process_message(uint64_t one)
             std::get<1>(msg_body)->connect(std::get<0>(msg_body));
         }
         break;
-
         case TASK_MSG_TYPE::TASK_STOP_LOOP_THREAD:
         {
             this->stop();
@@ -124,7 +123,6 @@ bool Loop::init(bool newThread)
     }
 
     int _evfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
-
     if (_evfd <= 0)
     {
         __LOG(error, "!!!!!!!!create event fd fail!");
@@ -133,7 +131,7 @@ bool Loop::init(bool newThread)
 
     try
     {
-        _event_server = std::make_shared<EventFdServer>(_loop->get_event_base(), _evfd, evfdCallback, this);
+        _event_server = std::make_shared<EventFdServer>(get_event_base(), _evfd, evfdCallback, this);
     }
     catch (std::exception &e)
     {
@@ -141,7 +139,7 @@ bool Loop::init(bool newThread)
         return false;
     }
 
-    _event_client = std::make_shared<EVFDClient>(_evfd);
+    _event_client = std::make_shared<EventFdClient>(_evfd);
 
     if (!onBeforeStart())
     {
