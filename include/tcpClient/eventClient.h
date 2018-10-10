@@ -29,9 +29,6 @@
 #include <sys/eventfd.h>
 
 
-/**
- * @brief EventFdClient base 
- */
 class EventFdClient
 {
 public:

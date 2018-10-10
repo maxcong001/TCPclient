@@ -32,9 +32,7 @@
 
 #define EVENTFD_EVENT_NEW_ERROR "EVENTFD_EVENT_NEW_ERROR"
 #define EVENTFD_EVENT_ADD_ERROR "EVENTFD_EVENT_ADD_ERROR"
-/**
- * @brief EventFdServer base 
- */
+
 class EventFdServer
 {
   public:
@@ -99,6 +97,3 @@ class EventFdServer
     struct event *_event;
     void *_arg;
 };
-
-
-

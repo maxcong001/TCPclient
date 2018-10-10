@@ -39,7 +39,7 @@
 #include <tuple>
 class Loop : public std::enable_shared_from_this<Loop>
 {
-public:
+  public:
 	Loop();
 	virtual ~Loop();
 	inline event_base *get_event_base()
@@ -55,14 +55,17 @@ public:
 	void stop(bool waiting = true);
 	bool post_message(TASK_MSG msg);
 	void process_message(uint64_t one);
-protected:
+
+  protected:
 	virtual bool onBeforeStart();
 	virtual void onBeforeLoop();
 	virtual void onAfterLoop();
 	virtual void onAfterStop();
-private:
+
+  private:
 	void _run();
-private:
+
+  private:
 	event_base *_base;
 	std::shared_ptr<std::thread> _thread_sptr;
 	std::atomic<int> _status;

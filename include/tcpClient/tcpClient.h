@@ -39,7 +39,7 @@
 typedef evutil_socket_t SocketFd;
 const SocketFd SOCKET_FD_INVALID = -1;
 
-class tcpClient: public std::enable_shared_from_this<tcpClient>
+class tcpClient : public std::enable_shared_from_this<tcpClient>
 
 {
   public:
@@ -69,29 +69,14 @@ class tcpClient: public std::enable_shared_from_this<tcpClient>
 	bool connect(CONN_INFO _info);
 	bool post_connect(CONN_INFO _info);
 	bool set_source_addr(std::string source_addr, int fd = -1);
-	/** get data length in the catche */
 	uint32_t getInputBufferLength() const;
-	/** view input buffer */
 	const uint8_t *viewInputBuffer(uint32_t size) const;
-	/** read input buffer */
 	bool readInputBuffer(uint8_t *dest, uint32_t size);
-	/** clear input buffer */
 	void clearInputBuffer();
 	bool drainInputBuffer(uint32_t len);
-
-	/** get socket */
 	SocketFd get_socket() const;
-	/** get connection address */
 	void getAddr(struct sockaddr_in *dest, uint32_t size) const;
-
-	/**
-	 * @brief send message
-	 * @param data the address of data
-	 * @param size 
-	 * @return 
-	 */
 	bool send(const char *data, uint32_t size);
-
 	std::shared_ptr<Loop> get_loop()
 	{
 		return _loop;
@@ -111,7 +96,6 @@ class tcpClient: public std::enable_shared_from_this<tcpClient>
 
   private:
 	void handleEvent(short events);
-	// note : this should call before connect
 	int set_sockopt_tos(unsigned int dscp, int _fd = -1);
 	bool _connect(struct sockaddr *addr, unsigned int addr_len, int fd = -1);
 
@@ -124,8 +108,4 @@ class tcpClient: public std::enable_shared_from_this<tcpClient>
 	std::atomic<bool> _isConnected;
 	CONN_INFO _conn_info;
 	struct bufferevent *_bev;
-
-
-
-
 };
