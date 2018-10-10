@@ -23,69 +23,164 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "tcpclient/loop.h"
+#include "tcpClient/loop.h"
 
-namespace tcpclient
+void evfdCallback(int fd, short event, void *args)
 {
+    uint64_t one;
+    int ret = read(fd, &one, sizeof one);
+    if (ret != sizeof one)
+    {
+        __LOG(warn, "read return : " << ret);
+        return;
+    }
+    Loop *tmp = reinterpret_cast<Loop *>(args);
+    tmp->process_message(one);
+}
+
+bool Loop::post_message(TASK_MSG msg)
+{
+    {
+        std::lock_guard<std::mutex> lck(mtx);
+        _task_queue.push(msg);
+    }
+    _event_client->send();
+}
+void Loop::process_message(uint64_t one)
+{
+    TASK_QUEUE _tmp_task_queue;
+    {
+        std::lock_guard<std::mutex> lck(mtx);
+        // actually process all the messages
+        swap(_task_queue, _tmp_task_queue);
+        if (_tmp_task_queue.empty())
+        {
+            __LOG(warn, "_tmp_task_queue queue is empty");
+            return;
+        }
+    }
+    while (_tmp_task_queue.size() != 0)
+    {
+        auto tmp = _tmp_task_queue.front();
+
+        switch (tmp.type)
+        {
+
+        case TASK_MSG_TYPE::TASK_ADD_CONN:
+        {
+            std::tuple<conn_info, std::shared_ptr<tcpClient>> msg_body;
+            try
+            {
+                msg_body = TASK_ANY_CAST < std::tuple<conn_info, std::shared_ptr<tcpClient>>(tmp.body);
+            }
+            catch (std::exception &e)
+            {
+                __LOG(error, "!!!!!!!!!!!!exception happend when trying to cast message, info :" << e.what());
+                return;
+            }
+            std::get<1>(msg_body)->connect(std::get<0>(msg_body));
+        }
+        break;
+
+        case TASK_MSG_TYPE::TASK_STOP_LOOP_THREAD:
+        {
+            this->stop();
+            __LOG(warn, "receive a stop loop thread message!");
+        }
+        break;
+        default:
+            __LOG(error, "unsupport message type");
+            break;
+        }
+        _tmp_task_queue.pop();
+    }
+}
 Loop::Loop() : _base(NULL),
-			   _status(StatusInit)
+               _status(StatusInit)
 {
-	_base = event_base_new();
-	if (!_base)
-	{
-		throw std::logic_error(CREATE_EVENT_FAIL);
-	}
 }
 
 Loop::~Loop()
 {
-	stop();
-	if (NULL != _base)
-	{
-		event_base_free(_base);
-		_base = NULL;
-	}
+    stop();
+    if (NULL != _base)
+    {
+        event_base_free(_base);
+        _base = NULL;
+    }
+    if (_thread_sptr)
+    {
+        _thread_sptr->join();
+    }
 }
-void Loop::init(bool newThread)
+
+bool Loop::init(bool newThread)
 {
-	_status = StatusInit;
-	if (!onBeforeStart())
-	{
-		return false;
-	}
-	if (newThread)
-	{
-		_thread.reset(new std::thread(std::bind(&Loop::_run, this)));
-	}
-	else
-	{
-		_run();
-	}
-	return true;
+    evthread_use_pthreads();
+    _base = event_base_new();
+    if (!_base)
+    {
+        throw std::logic_error(CREATE_EVENT_FAIL);
+    }
+
+    int _evfd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+
+    if (_evfd <= 0)
+    {
+        __LOG(error, "!!!!!!!!create event fd fail!");
+        return false;
+    }
+
+    try
+    {
+        _event_server = std::make_shared<EventFdServer>(_loop->get_event_base(), _evfd, evfdCallback, this);
+    }
+    catch (std::exception &e)
+    {
+        __LOG(error, "!!!!!!!!!!!!exception happend when trying to create event fd server, info :" << e.what());
+        return false;
+    }
+
+    _event_client = std::make_shared<EVFDClient>(_evfd);
+
+    if (!onBeforeStart())
+    {
+        return false;
+    }
+    if (newThread)
+    {
+        _thread_sptr.reset(new std::thread(std::bind(&Loop::_run, this)));
+    }
+    else
+    {
+        _run();
+    }
+    return true;
 }
 
 void Loop::_run()
 {
-	_status = StatusRunning;
-	onBeforeLoop();
-	event_base_loop(_base, 0);
-	onAfterLoop();
-	_status = StatusFinished;
+    _status = StatusRunning;
+    onBeforeLoop();
+    event_base_loop(_base, 0);
+    __LOG(debug, "base loop is exiting...");
+    onAfterLoop();
+    _status = StatusFinished;
 }
 void Loop::stop(bool waiting)
 {
-	if (StatusFinished == _status)
-	{
-		return;
-	}
-	//if call the active callback before exit
-	waiting ? event_base_loopexit(_base, NULL) : event_base_loopbreak(_base);
-	onAfterStop();
+    if (StatusFinished == _status)
+    {
+        return;
+    }
+    //if call the active callback before exit
+    waiting ? event_base_loopexit(_base, NULL) : event_base_loopbreak(_base);
+    onAfterStop();
 }
 
 bool Loop::onBeforeStart()
 {
-	return true;
+    return true;
 }
 
 void Loop::onBeforeLoop()
@@ -99,5 +194,3 @@ void Loop::onAfterLoop()
 void Loop::onAfterStop()
 {
 }
-
-} /* namespace tcpclient */

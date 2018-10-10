@@ -26,18 +26,26 @@
 #pragma once
 #include <memory>
 #include <map>
-#include "tcpclient/define.h"
+#include "tcpClient/define.h"
+#include "tcpClient/eventServer.h"
+#include "tcpClient/eventClient.h"
+#include "logger/logger.hpp"
 
-namespace tcpclient
-{
+#include <event2/bufferevent.h>
+#include <event2/event.h>
+#include <event2/thread.h>
+#include <thread>
+#include <atomic>
+#include <tuple>
 class Loop : public std::enable_shared_from_this<Loop>
 {
-  public:
+public:
 	Loop();
 	virtual ~Loop();
 
 	inline event_base *get_event_base()
 	{
+		__LOG(debug, "[get event_base]: event base is : " << (void *)_base);
 		return _base;
 	}
 
@@ -50,7 +58,10 @@ class Loop : public std::enable_shared_from_this<Loop>
 
 	void stop(bool waiting = true);
 
-  protected:
+	bool post_message();
+	void process_message(uint64_t one);
+
+protected:
 	virtual bool onBeforeStart();
 
 	virtual void onBeforeLoop();
@@ -59,13 +70,15 @@ class Loop : public std::enable_shared_from_this<Loop>
 
 	virtual void onAfterStop();
 
-  private:
+private:
 	void _run();
 
-  private:
+private:
 	event_base *_base;
 	std::shared_ptr<std::thread> _thread_sptr;
 	std::atomic<int> _status;
+	TASK_QUEUE _task_queue;
+	std::mutex mtx;
+	std::shared_ptr<EventFdServer> _event_server;
+	std::shared_ptr<EVFDClient> _event_client;
 };
-
-} /* namespace tcpclient */

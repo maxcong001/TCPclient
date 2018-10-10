@@ -1,3 +1,4 @@
+#pragma once
 /*
  * Copyright (c) 2016-20017 Max Cong <savagecm@qq.com>
  * Redistribution and use in source and binary forms, with or without
@@ -22,61 +23,42 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-#pragma once
-
-#include "loop.h"
-#include "timer.h"
-#include <unordered_map>
-#include <map>
-#include <atomic>
-#include <thread>
-#include <algorithm>
 #include "logger/logger.hpp"
-namespace tcpclient
+#include "tcpClient/define.h"
+#include <unistd.h>
+#include <sys/eventfd.h>
+
+
+/**
+ * @brief EventFdClient base 
+ */
+class EventFdClient
 {
-class Loop;
-class Timer;
-#define AUDIT_TIMER 5000
-class TimerManager
-{
-  public:
-	TimerManager(std::shared_ptr<Loop> loop_in) : uniqueID_atomic(0), t_map(), _loop(loop_in)
-	{
-	}
-	~TimerManager()
-	{
-	}
-	bool init()
-	{
-		getTimer()->startForever(AUDIT_TIMER, [this] {
-			auditTimer();
-		});
-		return true;
-	}
-	bool stop()
-	{
-		std::lock_guard<std::mutex> lck(mtx);
-		t_map.clear();
-		return true;
-	}
+public:
+  EventFdClient() = delete;
+  // Note:!! please make sure your fd is non-blocking
+  // for example: int ev_fd = eventfd(0, EFD_NONBLOCK|EFD_CLOEXEC);
+  EventFdClient(int efd) : one(1)
+  {
+    eventFd = efd;
+    __LOG(debug, "event fd is " << eventFd);
+  }
+  virtual ~EventFdClient() {}
 
-	Timer::ptr_p getTimer(int *timerID = NULL);
-	bool killTimer(int timerID);
-	bool auditTimer();
+  bool send()
+  {
+    int ret = write(eventFd, &one, sizeof(one));
+    if (ret != sizeof(one))
+    {
+      __LOG(error, "write event fd : " << eventFd << " fail");
+      return false;
+    }
+    return true;
+  }
 
-	std::mutex mtx;
-
-  protected:
-  private:
-	int getUniqueID()
-	{
-		return (uniqueID_atomic++);
-	}
-
-	std::atomic<int> uniqueID_atomic;
-	std::map<int, Timer::ptr_p> t_map;
-	std::shared_ptr<Loop> _loop;
+private:
+  int eventFd;
+  uint64_t one;
 };
 
-} /* namespace tcpclient */
+

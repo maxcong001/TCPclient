@@ -1,11 +1,39 @@
 #pragma once
 
 #include "logger/logger.hpp"
-#define CREATE_EVENT_FAIL "CREATE_EVENT_FAIL"
-namespace tcpclient
+#include "boost/asio/ip/address.hpp"
+#include <queue>
+
+#if __cplusplus >= 201703L
+// use std::any
+#include <any>
+#define TASK_ANY std::any
+#define TASK_ANY_CAST std::any_cast
+#else
+#include <boost/any.hpp>
+#define TASK_ANY boost::any
+#define TASK_ANY_CAST boost::any_cast
+#endif
+
+enum class TASK_MSG_TYPE : std::uint32_t
 {
-typedef evutil_socket_t SocketFd;
-const SocketFd SOCKET_FD_INVALID = -1;
+    TASK_ADD_CONN,
+    TASK_STOP_LOOP_THREAD,
+    TASK_MAX
+};
+struct TASK_MSG
+{
+    TASK_MSG_TYPE type;
+    std::uint32_t seq_id;
+    std::string from;
+    std::string to;
+    TASK_ANY body;
+};
+typedef std::queue<TASK_MSG> TASK_QUEUE;
+
+using boost::asio::ip::address;
+
+#define CREATE_EVENT_FAIL "CREATE_EVENT_FAIL"
 
 enum CONN_STATUS
 {
@@ -21,6 +49,7 @@ struct HostType
         IPV4,
         IPV6,
         FQDN,
+        UNIX_SOCKET,
         MAX
     };
 
@@ -31,6 +60,11 @@ struct HostType
 };
 static HostType::type getHostType(const std::string &host)
 {
+    if (host.empty())
+    {
+        __LOG(error, "host is empty");
+        return HostType::MAX;
+    }
     try
     {
         address addr(address::from_string(host));
@@ -44,20 +78,26 @@ static HostType::type getHostType(const std::string &host)
         }
         else
         {
-            return HostType::FQDN;
+            return HostType::UNIX_SOCKET;
         }
     }
+    /*
     catch (boost::system::system_error &e)
     {
         //Expected exception for FQDN
-        logger->debug(DBW_LOG,
-                      "Got error(%s) when parsing host %s, treat as FQDN.\n",
-                      e.what(), host.c_str());
-        return HostType::FQDN;
+        __LOG(debug, "got error while get host type, host is : " << host);
+        return HostType::MAX;
+    }
+    */
+    catch (...)
+    {
+        //Expected exception for FQDN
+        __LOG(debug, "got error while get host type, host is : " << host);
+        return HostType::MAX;
     }
 }
 
-struct conn_info
+struct CONN_INFO
 {
     std::string ip;
     std::string port;
@@ -66,9 +106,8 @@ struct conn_info
     std::string path;
     unsigned int dscp;
 
-    conn_info()
+    CONN_INFO()
     {
-        type = HostType::MAX;
         dscp = 0;
     }
 
@@ -79,8 +118,7 @@ struct conn_info
 
     std::tuple<std::string, std::string, std::string, std::string, bool> get_ip_port()
     {
-
-        bool isV6 = ((type == conn_type::IPv6) ? true : false);
+        bool isV6 = ((get_conn_type() == HostType::IPV6) ? true : false);
         return std::make_tuple(ip, port, source_ip, source_port, isV6);
     }
     std::string get_ip()
@@ -104,14 +142,13 @@ struct conn_info
         return dscp;
     }
     /*
-    inline bool operator<(const conn_info &rhs)
+    inline bool operator<(const  CONN_INFO &rhs)
     {
         return true;
     }
     */
-    inline conn_info &operator=(conn_info rhs)
+    inline CONN_INFO &operator=(CONN_INFO rhs)
     {
-        type = rhs.type;
         ip = rhs.ip;
         port = rhs.port;
         source_ip = rhs.source_ip;
@@ -120,9 +157,8 @@ struct conn_info
         dscp = rhs.dscp;
         return *this;
     }
-    inline bool operator==(conn_info rhs)
+    inline bool operator==(CONN_INFO rhs)
     {
-        return (source_port == rhs.source_port) && (dscp == rhs.dscp) && ((type == rhs.type) && (!ip.compare(rhs.get_ip())) && (!port.compare(rhs.get_port())) && (!source_ip.compare(rhs.get_source_ip())) && (!path.compare(rhs.get_path())));
+        return (source_port == rhs.source_port) && (dscp == rhs.dscp) && (!ip.compare(rhs.get_ip())) && (!port.compare(rhs.get_port())) && (!source_ip.compare(rhs.get_source_ip())) && (!path.compare(rhs.get_path()));
     }
 };
-}; // namespace tcpclient
