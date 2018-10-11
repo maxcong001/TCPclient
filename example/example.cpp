@@ -17,7 +17,7 @@
 #include <boost/asio.hpp>
 
 using boost::asio::ip::tcp;
-
+boost::asio::io_service io_service;
 class session
     : public std::enable_shared_from_this<session>
 {
@@ -56,7 +56,6 @@ class session
                                      }
                                  });
     }
-
     tcp::socket socket_;
     enum
     {
@@ -84,11 +83,9 @@ class server
                                    {
                                        std::make_shared<session>(std::move(socket_))->start();
                                    }
-
                                    do_accept();
                                });
     }
-
     tcp::acceptor acceptor_;
     tcp::socket socket_;
 };
@@ -97,31 +94,23 @@ int echoServer()
 {
     try
     {
-        boost::asio::io_service io_service;
-
         server s(io_service, 2002);
-
         io_service.run();
     }
     catch (std::exception &e)
     {
         std::cerr << "Exception: " << e.what() << "\n";
     }
-
     return 0;
 }
+
 int main()
 {
     set_log_level(logger_iface::log_level::debug);
-
     std::thread server_thread(echoServer);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-
     std::shared_ptr<Loop> loop_sptr(new Loop);
     loop_sptr->init(true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     std::shared_ptr<tcpClient> client_sptr = std::make_shared<tcpClient>(loop_sptr);
-
     CONN_INFO ip_info;
     ip_info.ip = "127.0.0.1";
     ip_info.port = "2002";
@@ -132,7 +121,6 @@ int main()
         __LOG(debug, "connection is not ready");
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
-
     for (int i = 0; i < 5; i++)
     {
         __LOG(debug, "now send message");
@@ -140,7 +128,7 @@ int main()
         {
             __LOG(error, "send fail!!!");
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
     client_sptr->disconnect();
     for (int i = 0; i < 5; i++)
@@ -150,11 +138,17 @@ int main()
         {
             __LOG(error, "send fail!!!");
         }
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    client_sptr->post_connect(ip_info);
+    while (!client_sptr->isConnected())
+    {
+        __LOG(debug, "connection is not ready");
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
-    __LOG(debug, "now exiting!");
-    client_sptr->post_connect(ip_info);
     client_sptr->send(test.c_str(), test.size());
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    __LOG(debug, "now exiting!");
+    io_service.stop();
     server_thread.join();
 }
