@@ -84,6 +84,7 @@ void Loop::process_message(uint64_t one)
         case TASK_MSG_TYPE::TASK_STOP_LOOP_THREAD:
         {
             this->stop();
+
             __LOG(warn, "receive a stop loop thread message!");
         }
         break;
@@ -101,15 +102,17 @@ Loop::Loop() : _base(NULL),
 
 Loop::~Loop()
 {
-    stop();
+    TASK_MSG msg;
+    msg.type = TASK_MSG_TYPE::TASK_STOP_LOOP_THREAD;
+    post_message(msg);
+    if (_thread_sptr)
+    {
+        _thread_sptr->join();
+    }
     if (NULL != _base)
     {
         event_base_free(_base);
         _base = NULL;
-    }
-    if (_thread_sptr)
-    {
-        _thread_sptr->join();
     }
 }
 

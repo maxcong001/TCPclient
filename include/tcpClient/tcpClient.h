@@ -64,8 +64,8 @@ class tcpClient : public std::enable_shared_from_this<tcpClient>
 	{
 		return _conn_info;
 	}
-
-	void reconnect();
+	bool disconnect();
+	bool reconnect();
 	bool connect(CONN_INFO _info);
 	bool post_connect(CONN_INFO _info);
 	bool set_source_addr(std::string source_addr, int fd = -1);
@@ -92,7 +92,10 @@ class tcpClient : public std::enable_shared_from_this<tcpClient>
 
 		__LOG(warn, "disconnect!!!!!");
 	}
-	virtual void onConnected(int error){};
+	virtual void onConnected(int error)
+	{
+		__LOG(warn, "connected!!!!!");
+	};
 
   private:
 	void handleEvent(short events);

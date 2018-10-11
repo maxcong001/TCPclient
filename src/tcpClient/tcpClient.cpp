@@ -28,14 +28,9 @@
 #include "logger/logger.hpp"
 #include <memory>
 
-
-
-
-
 tcpClient::tcpClient(std::shared_ptr<Loop> loop) : _loop(loop),
 												   _isConnected(false), _bev(NULL)
 {
-
 }
 
 void tcpClient::handleEvent(short events)
@@ -123,7 +118,9 @@ bool tcpClient::post_connect(CONN_INFO info)
 {
 	TASK_MSG msg;
 	msg.type = TASK_MSG_TYPE::TASK_ADD_CONN;
-	msg.body = std::make_tuple(info, shared_from_this());
+
+	std::shared_ptr<tcpClient> _tmp_shared_ptr = shared_from_this();
+	msg.body = std::make_tuple(info, _tmp_shared_ptr);
 	return _loop->post_message(msg);
 }
 bool tcpClient::connect(CONN_INFO _info)
@@ -367,11 +364,21 @@ bool tcpClient::set_source_addr(std::string source_addr, int fd)
 	freeaddrinfo(bservinfo);
 	return true;
 }
-void tcpClient::reconnect()
+bool tcpClient::disconnect()
 {
 	if (this->_bev)
 	{
 		bufferevent_free(this->_bev);
+		this->_bev = NULL;
+	}
+	_isConnected = false;
+}
+bool tcpClient::reconnect()
+{
+	if (this->_bev)
+	{
+		bufferevent_free(this->_bev);
+		this->_bev = NULL;
 	}
 	_isConnected = false;
 	connect(get_conn_info());
@@ -385,9 +392,7 @@ bool tcpClient::init()
 		__LOG(warn, "buffer event is not NULL");
 		bufferevent_free(this->_bev);
 		this->_bev = NULL;
-	}        
-
-
+	}
 
 	return true;
 }
