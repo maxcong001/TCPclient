@@ -86,6 +86,45 @@ class tcpClient : public std::enable_shared_from_this<tcpClient>
 	virtual void onRead()
 	{
 		__LOG(warn, "tcp client receive message");
+		/*example:        
+				do
+			{
+			    uint32_t length = this->getInputBufferLength();
+			    if (length < 1)
+			    {
+				__LOG(debug, "[TcpClientTPKT] read " << length << "message, it is less than 1 byte!");
+				break;
+			    }
+			    const uint8_t *buf = this->viewInputBuffer(TPKT1_LENGTH);
+			    if (buf[0] != TPKT_VERSION1_LOW_BYTE)
+			    {
+				__LOG(error, "[TcpClientTPKT] error!!! TPKT magic number is lost!!");
+				// read one byte and try again
+				uint8_t tmp_buf;
+				this->readInputBuffer(&tmp_buf, 1);
+			    }
+
+			    // 3-byte packet length
+			    unsigned int packet_length = ((*(buf + 1) & 0xff) << 16) |
+							 ((*(buf + 2) & 0xff) << 8) |
+							 (*(buf + 3) & 0xff);
+			    //length = packet_length - TPKT1_LENGTH;
+			    if (packet_length > length)
+			    {
+				// some message is still in the air
+				break;
+			    }
+			    else
+			    {
+				std::shared_ptr<uint8_t> buffer(static_cast<uint8_t *>(malloc(sizeof(packet_length))), free);
+				uint8_t *buffer_tmp = buffer.get();
+				this->readInputBuffer(buffer_tmp, packet_length);
+				onRead((((uint8_t *)buffer_tmp) + TPKT1_LENGTH), (packet_length - TPKT1_LENGTH));
+			    }
+			    //  onRead((((uint8_t *)buff) + TPKT1_LENGTH), (packet_length - TPKT1_LENGTH));
+		} while (1);
+		
+		*/
 	}
 	virtual void onDisconnected()
 	{
